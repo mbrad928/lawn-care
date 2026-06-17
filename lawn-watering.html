@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lawn Watering — Rockburn Drive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --soil: #2C1F0E;
+    --grass: #4A7C59;
+    --rain: #5B8FA8;
+    --warn: #D4823A;
+    --straw: #C8A96E;
+    --surface: #F7F3EE;
+    --card: #FFFFFF;
+    --text: #1A1208;
+    --muted: #7A6A55;
+  }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--surface);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  header { margin-bottom: 28px; }
+
+  .eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+  }
+
+  h1 { font-size: 22px; font-weight: 600; color: var(--soil); line-height: 1.2; }
+
+  .date-line {
+    font-size: 12px; color: var(--muted);
+    margin-top: 4px; font-family: 'Space Mono', monospace;
+  }
+
+  /* TODAY CARD */
+  .rec-card {
+    border-radius: 16px; padding: 24px 20px;
+    margin-bottom: 20px; color: white;
+    position: relative; overflow: hidden; min-height: 130px;
+  }
+  .rec-card.no-water { background: var(--grass); }
+  .rec-card.water    { background: var(--warn); }
+  .rec-card.maybe    { background: var(--straw); }
+  .rec-card::after {
+    content: ''; position: absolute;
+    right: -20px; top: -20px;
+    width: 120px; height: 120px;
+    border-radius: 50%; background: rgba(255,255,255,0.08);
+  }
+  .rec-icon { font-size: 36px; margin-bottom: 10px; display: block; }
+  .rec-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.12em;
+    text-transform: uppercase; opacity: 0.75; margin-bottom: 4px;
+  }
+  .rec-title { font-size: 24px; font-weight: 600; margin-bottom: 6px; }
+  .rec-reason { font-size: 13px; opacity: 0.88; line-height: 1.5; }
+
+  /* LOG TODAY BUTTON */
+  .log-btn-wrap { margin-bottom: 20px; }
+
+  .log-btn {
+    width: 100%; padding: 14px;
+    border: 2px solid var(--rain);
+    background: white; color: var(--rain);
+    border-radius: 12px; font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .log-btn.logged {
+    background: var(--rain); color: white;
+    border-color: var(--rain);
+  }
+  .log-btn.undo {
+    border-color: var(--muted); color: var(--muted);
+    font-size: 12px; padding: 10px;
+    margin-top: 8px; font-weight: 400;
+    background: white;
+  }
+
+  /* STAT GRID */
+  .stat-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px; margin-bottom: 20px;
+  }
+  .stat-card {
+    background: var(--card); border-radius: 12px;
+    padding: 16px; border: 1px solid rgba(0,0,0,0.06);
+  }
+  .stat-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+  .stat-value { font-size: 26px; font-weight: 600; color: var(--soil); line-height: 1; }
+  .stat-unit { font-size: 12px; font-weight: 400; color: var(--muted); margin-left: 2px; }
+  .stat-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* SECTION */
+  .section {
+    background: var(--card); border-radius: 12px;
+    padding: 18px; margin-bottom: 20px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  }
+
+  /* RAINFALL BAR */
+  .rainfall-bar-bg {
+    background: #EBE5DC; border-radius: 99px;
+    height: 10px; width: 100%; margin-bottom: 8px; overflow: hidden;
+  }
+  .rainfall-bar-fill {
+    height: 100%; border-radius: 99px;
+    background: var(--rain); transition: width 0.6s ease;
+  }
+  .rainfall-bar-fill.over { background: var(--grass); }
+  .rainfall-bar-labels {
+    display: flex; justify-content: space-between;
+    font-size: 11px; color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* PAST DAYS BARS */
+  .days-row { display: flex; gap: 6px; margin-top: 16px; }
+  .day-pill { flex: 1; text-align: center; }
+  .day-name {
+    font-size: 9px; font-family: 'Space Mono', monospace;
+    color: var(--muted); text-transform: uppercase; margin-bottom: 5px;
+  }
+  .day-bar-bg {
+    background: #EBE5DC; border-radius: 4px;
+    height: 40px; display: flex; align-items: flex-end; overflow: hidden;
+    position: relative;
+  }
+  .day-bar-fill {
+    width: 100%; border-radius: 4px;
+    transition: height 0.5s ease;
+  }
+  .day-bar-fill.rain-bar { background: var(--rain); }
+  .day-bar-fill.water-bar { background: #A8C5DA; }
+  .day-amount {
+    font-size: 9px; font-family: 'Space Mono', monospace;
+    color: var(--muted); margin-top: 4px;
+  }
+  .day-icon { font-size: 10px; margin-top: 2px; }
+
+  /* SCHEDULE */
+  .schedule-row {
+    display: flex; align-items: flex-start;
+    padding: 11px 0; border-bottom: 1px solid #F0EBE3; gap: 12px;
+  }
+  .schedule-row:last-child { border-bottom: none; }
+
+  .sc-badge {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0; margin-top: 1px;
+  }
+  .sc-badge.water    { background: #FDEBD0; }
+  .sc-badge.no-water { background: #E8F5E9; }
+  .sc-badge.maybe    { background: #FFF8E1; }
+  .sc-badge.past     { background: #F0EBE3; }
+  .sc-badge.watered  { background: #DCEEF7; }
+
+  .sc-info { flex: 1; }
+  .sc-day-line { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+  .sc-day { font-size: 13px; font-weight: 600; }
+  .sc-today-tag {
+    font-size: 9px; font-family: 'Space Mono', monospace;
+    background: var(--soil); color: white;
+    padding: 2px 6px; border-radius: 99px; letter-spacing: 0.05em;
+  }
+  .sc-action { font-size: 12px; font-weight: 500; }
+  .sc-action.water    { color: var(--warn); }
+  .sc-action.no-water { color: var(--grass); }
+  .sc-action.maybe    { color: var(--straw); }
+  .sc-action.past     { color: var(--muted); }
+  .sc-action.watered  { color: var(--rain); }
+  .sc-detail { font-size: 11px; color: var(--muted); line-height: 1.4; margin-top: 2px; }
+
+  .sc-right { text-align: right; flex-shrink: 0; font-family: 'Space Mono', monospace; }
+  .sc-weather-icon { font-size: 16px; }
+  .sc-rain { font-size: 10px; color: var(--rain); margin-top: 2px; }
+  .sc-temp { font-size: 10px; color: var(--muted); }
+
+  /* REFRESH */
+  .refresh-btn {
+    display: block; width: 100%; margin-top: 20px; padding: 13px;
+    background: var(--soil); color: white; border: none;
+    border-radius: 10px; font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px; font-weight: 500; cursor: pointer; letter-spacing: 0.02em;
+  }
+  .last-updated {
+    text-align: center; font-size: 10px;
+    font-family: 'Space Mono', monospace; color: var(--muted); margin-top: 14px;
+  }
+
+  .loading { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 13px; }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid #EBE5DC; border-top-color: var(--grass);
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg {
+    background: #FFF3E0; border-radius: 10px; padding: 14px;
+    font-size: 13px; color: var(--warn); text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">7823 Rockburn Drive · Ellicott City, MD</div>
+  <h1>Lawn Watering</h1>
+  <div class="date-line" id="today-date"></div>
+</header>
+
+<div id="app">
+  <div class="loading">
+    <div class="spinner"></div>
+    Fetching weather…
+  </div>
+</div>
+
+<script>
+const LAT = 39.2676;
+const LON = -76.7983;
+const GOAL_INCHES = 1.0;
+// Each manual watering session counts as 1" equivalent
+const WATERING_EQUIV = 1.0;
+
+// ── localStorage helpers ──────────────────────────────────────────────────────
+function getWateredDates() {
+  try { return JSON.parse(localStorage.getItem('wateredDates') || '[]'); }
+  catch { return []; }
+}
+function setWateredDate(dateStr, add) {
+  let dates = getWateredDates();
+  if (add) { if (!dates.includes(dateStr)) dates.push(dateStr); }
+  else { dates = dates.filter(d => d !== dateStr); }
+  localStorage.setItem('wateredDates', JSON.stringify(dates));
+}
+function wasWatered(dateStr) { return getWateredDates().includes(dateStr); }
+
+// ── Utilities ─────────────────────────────────────────────────────────────────
+function getDayName(dateStr, short = true) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: short ? 'short' : 'long' });
+}
+function getTodayStr() { return new Date().toISOString().split('T')[0]; }
+function dateOffset(n) {
+  const d = new Date(); d.setDate(d.getDate() + n);
+  return d.toISOString().split('T')[0];
+}
+
+async function fetchWeather() {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}`
+    + `&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,weathercode`
+    + `&temperature_unit=fahrenheit&precipitation_unit=inch`
+    + `&timezone=America%2FNew_York`
+    + `&start_date=${dateOffset(-6)}&end_date=${dateOffset(6)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('fetch failed');
+  return res.json();
+}
+
+function weatherIcon(code) {
+  if (code === 0) return '☀️';
+  if (code <= 2) return '⛅';
+  if (code <= 3) return '☁️';
+  if (code <= 48) return '🌫️';
+  if (code <= 67) return '🌧️';
+  if (code <= 77) return '❄️';
+  if (code <= 82) return '🌦️';
+  if (code <= 86) return '🌨️';
+  if (code >= 95) return '⛈️';
+  return '🌤️';
+}
+
+// ── Schedule logic ────────────────────────────────────────────────────────────
+function buildSchedule(allDays) {
+  const today = getTodayStr();
+  return allDays.map((day, i) => {
+    const manuallyWatered = wasWatered(day.date);
+
+    if (day.isPast) {
+      let action, type;
+      if (manuallyWatered) {
+        action = `Watered 💧`; type = 'watered';
+      } else if (day.rain >= 0.25) {
+        action = `Rained ${day.rain.toFixed(2)}"`; type = 'past';
+      } else if (day.rain > 0) {
+        action = `Light rain (${day.rain.toFixed(2)}")`; type = 'past';
+      } else {
+        action = 'No rain'; type = 'past';
+      }
+      return { ...day, type, action, detail: null, manuallyWatered };
+    }
+
+    // Rolling 7-day window ending on this day
+    const windowStart = new Date(day.date + 'T00:00:00');
+    windowStart.setDate(windowStart.getDate() - 6);
+    const windowStartStr = windowStart.toISOString().split('T')[0];
+
+    // Build window total day by day — each watering tops up to GOAL for that day
+    // so a watering after a dry week still registers as meaningfully filling the tank
+    let windowRain = 0;
+    for (const d of allDays) {
+      if (d.date >= windowStartStr && d.date < day.date) {
+        const dayRain = d.rain;
+        const dayWatered = wasWatered(d.date) && (d.isPast || d.isToday);
+        if (dayWatered) {
+          // Treat a watering as delivering whatever is needed to reach GOAL,
+          // minimum WATERING_EQUIV, so it always makes a real dent
+          windowRain += Math.max(WATERING_EQUIV, GOAL_INCHES - windowRain - dayRain);
+        }
+        windowRain += dayRain;
+      }
+    }
+
+    const totalWithToday = windowRain + day.rain + (manuallyWatered ? Math.max(WATERING_EQUIV, GOAL_INCHES - windowRain - day.rain) : 0);
+    const deficit = Math.max(0, GOAL_INCHES - totalWithToday);
+
+    let nearFutureRain = 0;
+    for (let j = i + 1; j <= i + 2 && j < allDays.length; j++) {
+      nearFutureRain += allDays[j].rain;
+    }
+
+    let type, action, detail;
+
+    if (manuallyWatered) {
+      type = 'no-water'; action = 'Already watered 💧';
+      detail = `You watered today. That counts toward your weekly total.`;
+    } else if (totalWithToday >= GOAL_INCHES) {
+      type = 'no-water'; action = 'Skip — goal met';
+      detail = `${totalWithToday.toFixed(2)}" in the 7-day window including today's forecast.`;
+    } else if (day.rain >= 0.4) {
+      type = 'no-water'; action = 'Skip — rain expected';
+      detail = `${day.rain.toFixed(2)}" of rain forecast today. Let nature handle it.`;
+    } else if (nearFutureRain >= deficit) {
+      type = 'maybe'; action = 'Hold — rain coming';
+      detail = `${nearFutureRain.toFixed(2)}" expected in the next 2 days — likely to close the ${deficit.toFixed(2)}" gap.`;
+    } else if (deficit >= 0.5) {
+      type = 'water'; action = 'Water today';
+      detail = `${windowRain.toFixed(2)}" so far in your 7-day window — ${deficit.toFixed(2)}" short. Run your sprinkler.`;
+    } else if (deficit > 0) {
+      type = 'maybe'; action = 'Optional';
+      detail = `Only ${deficit.toFixed(2)}" short. Check if the soil feels dry before running the sprinkler.`;
+    } else {
+      type = 'no-water'; action = 'Skip';
+      detail = 'On track for the week.';
+    }
+
+    return { ...day, type, action, detail, manuallyWatered };
+  });
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+const recIconMap  = { water: '💧', 'no-water': '✅', maybe: '🤔', past: '📅', watered: '💧' };
+const recTitleMap = { water: 'Water today', 'no-water': 'Skip watering', maybe: 'Hold off for now', past: '', watered: 'Already watered' };
+
+function toggleWatered(dateStr) {
+  const alreadyLogged = wasWatered(dateStr);
+  setWateredDate(dateStr, !alreadyLogged);
+  renderApp(window._weatherData);
+}
+
+function renderApp(data) {
+  window._weatherData = data;
+  const dates   = data.daily.time;
+  const precip  = data.daily.precipitation_sum;
+  const maxT    = data.daily.temperature_2m_max;
+  const minT    = data.daily.temperature_2m_min;
+  const codes   = data.daily.weathercode;
+  const today   = getTodayStr();
+
+  const allDays = [];
+  for (let offset = -6; offset <= 6; offset++) {
+    const ds  = dateOffset(offset);
+    const idx = dates.indexOf(ds);
+    if (idx < 0) continue;
+    allDays.push({
+      date: ds, name: getDayName(ds), nameLong: getDayName(ds, false),
+      rain: precip[idx] || 0,
+      high: Math.round(maxT[idx]), low: Math.round(minT[idx]),
+      code: codes[idx],
+      isPast: offset < 0, isToday: offset === 0, isFuture: offset > 0,
+    });
+  }
+
+  const schedule  = buildSchedule(allDays);
+  const past7     = allDays.filter(d => d.isPast || d.isToday).slice(-7);
+
+  // Weekly total = rain + manual waterings in past 7 days (capped at GOAL per watering)
+  let weekTotal = 0;
+  for (const d of past7) {
+    weekTotal += d.rain;
+    if (wasWatered(d.date)) weekTotal += WATERING_EQUIV;
+  }
+  weekTotal = Math.min(weekTotal, GOAL_INCHES * 2); // cap display at 2x for sanity
+
+  const barPct    = Math.min(100, (weekTotal / GOAL_INCHES) * 100);
+  const maxVal    = Math.max(...past7.map(d => d.rain + (wasWatered(d.date) ? WATERING_EQUIV : 0)), 0.1);
+
+  const todayEntry = schedule.find(d => d.isToday);
+  const todayIdx   = dates.indexOf(today);
+  const todayCode  = todayIdx >= 0 ? codes[todayIdx] : 0;
+  const todayHigh  = todayIdx >= 0 ? Math.round(maxT[todayIdx]) : '--';
+  const todayLow   = todayIdx >= 0 ? Math.round(minT[todayIdx]) : '--';
+  const todayRain  = todayIdx >= 0 ? (precip[todayIdx] || 0) : 0;
+  const todayWatered = wasWatered(today);
+
+  const scheduleDisplay = schedule.filter(d => d.isToday || d.isFuture).slice(0, 7);
+
+  document.getElementById('today-date').textContent =
+    new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  document.getElementById('app').innerHTML = `
+    <div class="rec-card ${todayEntry ? todayEntry.type : 'maybe'}">
+      <span class="rec-icon">${todayEntry ? recIconMap[todayEntry.type] : '🤔'}</span>
+      <div class="rec-label">Today's recommendation</div>
+      <div class="rec-title">${todayEntry ? recTitleMap[todayEntry.type] : ''}</div>
+      <div class="rec-reason">${todayEntry ? todayEntry.detail : ''}</div>
+    </div>
+
+    <div class="log-btn-wrap">
+      <button class="log-btn ${todayWatered ? 'logged' : ''}" onclick="toggleWatered('${today}')">
+        ${todayWatered ? '✓ Watered today — tap to undo' : '💧 Log that I watered today'}
+      </button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">This week total</div>
+        <div class="stat-value">${Math.min(weekTotal, 9.99).toFixed(2)}<span class="stat-unit">"</span></div>
+        <div class="stat-sub">Rain + manual watering</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Today</div>
+        <div class="stat-value">${weatherIcon(todayCode)}</div>
+        <div class="stat-sub">${todayHigh}° / ${todayLow}° · ${todayRain.toFixed(2)}" expected</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Past 7 days — rain + watering</div>
+      <div class="rainfall-bar-bg">
+        <div class="rainfall-bar-fill ${weekTotal >= GOAL_INCHES ? 'over' : ''}"
+             style="width: ${barPct}%"></div>
+      </div>
+      <div class="rainfall-bar-labels">
+        <span>${Math.min(weekTotal, 9.99).toFixed(2)}" total</span>
+        <span>1.00" goal</span>
+      </div>
+      <div class="days-row">
+        ${past7.map(d => {
+          const total = d.rain + (wasWatered(d.date) ? WATERING_EQUIV : 0);
+          const heightPct = (total / maxVal) * 100;
+          const isWatered = wasWatered(d.date);
+          return `
+            <div class="day-pill">
+              <div class="day-name" style="${d.isToday ? 'color:var(--grass);font-weight:700' : ''}">${d.name}</div>
+              <div class="day-bar-bg">
+                <div class="day-bar-fill ${isWatered ? 'water-bar' : 'rain-bar'}"
+                     style="height:${Math.max(heightPct, total > 0 ? 8 : 0)}%"></div>
+              </div>
+              <div class="day-icon">${isWatered ? '💧' : (d.rain > 0 ? '🌧️' : '')}</div>
+              <div class="day-amount">${total > 0 ? total.toFixed(2) + '"' : '—'}</div>
+            </div>`;
+        }).join('')}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">7-day watering schedule</div>
+      ${scheduleDisplay.map(d => `
+        <div class="schedule-row">
+          <div class="sc-badge ${d.type}">${recIconMap[d.type] || '📅'}</div>
+          <div class="sc-info">
+            <div class="sc-day-line">
+              <span class="sc-day">${d.nameLong}</span>
+              ${d.isToday ? '<span class="sc-today-tag">TODAY</span>' : ''}
+            </div>
+            <div class="sc-action ${d.type}">${d.action}</div>
+            ${d.detail ? `<div class="sc-detail">${d.detail}</div>` : ''}
+          </div>
+          <div class="sc-right">
+            <div class="sc-weather-icon">${weatherIcon(d.code)}</div>
+            <div class="sc-temp">${d.high}°/${d.low}°</div>
+            ${d.rain > 0 ? `<div class="sc-rain">${d.rain.toFixed(2)}"</div>` : ''}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <button class="refresh-btn" onclick="location.reload()">Refresh weather</button>
+    <div class="last-updated">Updated ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+  `;
+}
+
+async function init() {
+  try {
+    const data = await fetchWeather();
+    renderApp(data);
+  } catch(e) {
+    console.error(e);
+    document.getElementById('app').innerHTML = `
+      <div class="error-msg">Couldn't load weather. Open this file in your browser (not inside Claude) and it will work.</div>
+      <button class="refresh-btn" onclick="location.reload()">Try again</button>
+    `;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
