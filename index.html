@@ -241,9 +241,9 @@
 </div>
 
 <script type="module">
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
 import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot }
-  from 'https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js';
+  from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
 
 const LAT = 39.2676;
 const LON = -76.7983;
@@ -253,9 +253,12 @@ const WATERING_EQUIV = 1.0;
 
 // ── Firebase config — paste your project's values here ────────────────────────
 const FIREBASE_CONFIG = {
-  apiKey:            "YOUR_API_KEY",
-  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId:         "YOUR_PROJECT_ID",
+  apiKey:            "AIzaSyCUISnPIBiTW-HC14BPdKt7_H1Ff6KK7K8",
+  authDomain:        "lawn-care-6fe87.firebaseapp.com",
+  projectId:         "lawn-care-6fe87",
+  storageBucket:     "lawn-care-6fe87.firebasestorage.app",
+  messagingSenderId: "247879474144",
+  appId:             "1:247879474144:web:28f98e12814911150ee985",
 };
 
 // ── Firestore state ───────────────────────────────────────────────────────────
