@@ -287,10 +287,13 @@ function getDayName(dateStr, short = true) {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-US', { weekday: short ? 'short' : 'long' });
 }
-function getTodayStr() { return new Date().toISOString().split('T')[0]; }
+function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getTodayStr() { return toLocalDateStr(new Date()); }
 function dateOffset(n) {
   const d = new Date(); d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return toLocalDateStr(d);
 }
 
 async function fetchWeather() {
