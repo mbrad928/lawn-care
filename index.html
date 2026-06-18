@@ -240,35 +240,60 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
+import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot }
+  from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
+
 const LAT = 39.2676;
 const LON = -76.7983;
 const GOAL_INCHES = 1.0;
 // Each manual watering session counts as 1" equivalent
 const WATERING_EQUIV = 1.0;
 
-// ── localStorage helpers ──────────────────────────────────────────────────────
-function getWateredDates() {
-  try { return JSON.parse(localStorage.getItem('wateredDates') || '[]'); }
-  catch { return []; }
-}
+// ── Firebase config — paste your project's values here ────────────────────────
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyCUISnPIBiTW-HC14BPdKt7_H1Ff6KK7K8",
+  authDomain:        "lawn-care-6fe87.firebaseapp.com",
+  projectId:         "lawn-care-6fe87",
+  storageBucket:     "lawn-care-6fe87.firebasestorage.app",
+  messagingSenderId: "247879474144",
+  appId:             "1:247879474144:web:28f98e12814911150ee985",
+};
+
+// ── Firestore state ───────────────────────────────────────────────────────────
+let _wateredDates = [];
+let _logDocRef    = null;
+
+function getWateredDates() { return _wateredDates; }
+function wasWatered(dateStr) { return _wateredDates.includes(dateStr); }
+
 function setWateredDate(dateStr, add) {
-  let dates = getWateredDates();
-  if (add) { if (!dates.includes(dateStr)) dates.push(dateStr); }
-  else { dates = dates.filter(d => d !== dateStr); }
-  localStorage.setItem('wateredDates', JSON.stringify(dates));
+  // Optimistic local update so the UI responds instantly
+  if (add) {
+    if (!_wateredDates.includes(dateStr)) _wateredDates = [..._wateredDates, dateStr];
+  } else {
+    _wateredDates = _wateredDates.filter(d => d !== dateStr);
+  }
+  if (_logDocRef) {
+    updateDoc(_logDocRef, {
+      wateredDates: add ? arrayUnion(dateStr) : arrayRemove(dateStr),
+    }).catch(err => console.error('Firestore write failed:', err));
+  }
 }
-function wasWatered(dateStr) { return getWateredDates().includes(dateStr); }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 function getDayName(dateStr, short = true) {
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-US', { weekday: short ? 'short' : 'long' });
 }
-function getTodayStr() { return new Date().toISOString().split('T')[0]; }
+function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getTodayStr() { return toLocalDateStr(new Date()); }
 function dateOffset(n) {
   const d = new Date(); d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return toLocalDateStr(d);
 }
 
 async function fetchWeather() {
@@ -382,6 +407,7 @@ function toggleWatered(dateStr) {
   setWateredDate(dateStr, !alreadyLogged);
   renderApp(window._weatherData);
 }
+window.toggleWatered = toggleWatered;
 
 function renderApp(data) {
   window._weatherData = data;
@@ -517,13 +543,37 @@ function renderApp(data) {
 }
 
 async function init() {
+  // Initialize Firestore and load watered dates before first render
+  try {
+    const app = initializeApp(FIREBASE_CONFIG);
+    const db  = getFirestore(app);
+    _logDocRef = doc(db, 'watering-logs', 'shared');
+
+    const snap = await getDoc(_logDocRef);
+    if (snap.exists()) {
+      _wateredDates = snap.data().wateredDates || [];
+    } else {
+      await setDoc(_logDocRef, { wateredDates: [] });
+    }
+
+    // Real-time listener keeps all devices in sync
+    onSnapshot(_logDocRef, s => {
+      if (s.exists()) {
+        _wateredDates = s.data().wateredDates || [];
+        if (window._weatherData) renderApp(window._weatherData);
+      }
+    });
+  } catch(err) {
+    console.warn('Firestore unavailable, continuing without sync:', err);
+  }
+
   try {
     const data = await fetchWeather();
     renderApp(data);
   } catch(e) {
     console.error(e);
     document.getElementById('app').innerHTML = `
-      <div class="error-msg">Couldn't load weather. Open this file in your browser (not inside Claude) and it will work.</div>
+      <div class="error-msg">Couldn't load weather. Check your connection and try again.</div>
       <button class="refresh-btn" onclick="location.reload()">Try again</button>
     `;
   }
