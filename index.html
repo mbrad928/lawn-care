@@ -223,6 +223,46 @@
     background: #FFF3E0; border-radius: 10px; padding: 14px;
     font-size: 13px; color: var(--warn); text-align: center;
   }
+
+  /* SOIL MOISTURE */
+  .moisture-slider-wrap { margin: 12px 0 8px; }
+  .moisture-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 8px; border-radius: 99px; outline: none; cursor: pointer;
+    background: linear-gradient(to right,
+      var(--warn) 0%, var(--warn) 30%,
+      var(--grass) 30%, var(--grass) 70%,
+      var(--rain) 70%, var(--rain) 100%);
+  }
+  .moisture-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: white; border: 2px solid var(--soil); cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+  .moisture-slider::-moz-range-thumb {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: white; border: 2px solid var(--soil); cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  }
+  .moisture-scale {
+    display: flex; justify-content: space-between;
+    font-size: 9px; color: var(--muted);
+    font-family: 'Space Mono', monospace; text-transform: uppercase; margin-top: 6px;
+  }
+  .moisture-readout { display: flex; align-items: baseline; gap: 6px; margin: 10px 0 12px; }
+  .moisture-readout-val { font-size: 24px; font-weight: 600; color: var(--soil); }
+  .moisture-readout-zone {
+    font-size: 11px; font-family: 'Space Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .moisture-readout-zone.dry      { color: var(--warn); }
+  .moisture-readout-zone.adequate { color: var(--grass); }
+  .moisture-readout-zone.wet      { color: var(--rain); }
+  .day-moisture {
+    font-size: 8px; font-family: 'Space Mono', monospace;
+    margin-top: 2px; height: 10px; line-height: 10px;
+  }
 </style>
 </head>
 <body>
@@ -242,7 +282,7 @@
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js';
-import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot }
+import { getFirestore, doc, getDoc, setDoc, updateDoc, arrayUnion, arrayRemove, onSnapshot, deleteField }
   from 'https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js';
 
 const LAT = 39.2676;
@@ -262,8 +302,9 @@ const FIREBASE_CONFIG = {
 };
 
 // ── Firestore state ───────────────────────────────────────────────────────────
-let _wateredDates = [];
-let _logDocRef    = null;
+let _wateredDates     = [];
+let _moistureReadings = {};
+let _logDocRef        = null;
 
 function getWateredDates() { return _wateredDates; }
 function wasWatered(dateStr) { return _wateredDates.includes(dateStr); }
@@ -280,6 +321,31 @@ function setWateredDate(dateStr, add) {
       wateredDates: add ? arrayUnion(dateStr) : arrayRemove(dateStr),
     }).catch(err => console.error('Firestore write failed:', err));
   }
+}
+
+function getMoistureReading(dateStr) { return _moistureReadings[dateStr] ?? null; }
+
+function setMoistureReading(dateStr, value) {
+  _moistureReadings = { ..._moistureReadings, [dateStr]: value };
+  if (_logDocRef) {
+    updateDoc(_logDocRef, { [`moistureReadings.${dateStr}`]: value })
+      .catch(err => console.error('Firestore write failed:', err));
+  }
+}
+
+function clearMoistureReading(dateStr) {
+  const { [dateStr]: _removed, ...rest } = _moistureReadings;
+  _moistureReadings = rest;
+  if (_logDocRef) {
+    updateDoc(_logDocRef, { [`moistureReadings.${dateStr}`]: deleteField() })
+      .catch(err => console.error('Firestore write failed:', err));
+  }
+}
+
+function moistureZoneLabel(v) {
+  if (v <= 3) return 'dry';
+  if (v >= 8) return 'wet';
+  return 'adequate';
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -394,6 +460,20 @@ function buildSchedule(allDays) {
       detail = 'On track for the week.';
     }
 
+    // Soil moisture override for today — ground truth beats rain math in extremes
+    if (day.isToday && !manuallyWatered) {
+      const m = getMoistureReading(day.date);
+      if (m !== null) {
+        if (m <= 3) {
+          type = 'water'; action = 'Water today';
+          detail = `Soil reads ${m}/10 (dry). Ground needs water regardless of recent rain.`;
+        } else if (m >= 8) {
+          type = 'no-water'; action = 'Skip — soil is wet';
+          detail = `Soil reads ${m}/10. Ground is saturated — no watering needed.`;
+        }
+      }
+    }
+
     return { ...day, type, action, detail, manuallyWatered };
   });
 }
@@ -452,7 +532,8 @@ function renderApp(data) {
   const todayHigh  = todayIdx >= 0 ? Math.round(maxT[todayIdx]) : '--';
   const todayLow   = todayIdx >= 0 ? Math.round(minT[todayIdx]) : '--';
   const todayRain  = todayIdx >= 0 ? (precip[todayIdx] || 0) : 0;
-  const todayWatered = wasWatered(today);
+  const todayWatered   = wasWatered(today);
+  const todayMoisture  = getMoistureReading(today);
 
   const scheduleDisplay = schedule.filter(d => d.isToday || d.isFuture).slice(0, 7);
 
@@ -487,6 +568,29 @@ function renderApp(data) {
     </div>
 
     <div class="section">
+      <div class="section-label">Soil moisture</div>
+      <div class="moisture-slider-wrap">
+        <input type="range" min="1" max="10"
+               value="${todayMoisture !== null ? todayMoisture : 5}"
+               id="moisture-slider" class="moisture-slider"
+               oninput="updateMoistureDisplay(this.value)">
+        <div class="moisture-scale"><span>Dry (1)</span><span>Adequate</span><span>Wet (10)</span></div>
+      </div>
+      <div class="moisture-readout" id="moisture-readout">
+        ${todayMoisture !== null
+          ? `<span class="moisture-readout-val">${todayMoisture}/10</span>
+             <span class="moisture-readout-zone ${moistureZoneLabel(todayMoisture)}">${moistureZoneLabel(todayMoisture)}</span>`
+          : `<span class="moisture-readout-val" style="color:var(--muted)">—</span>
+             <span class="moisture-readout-zone" style="color:var(--muted)">not logged today</span>`
+        }
+      </div>
+      ${todayMoisture !== null
+        ? `<button class="log-btn logged" onclick="clearMoisture('${today}')">✓ Reading logged — tap to clear</button>`
+        : `<button class="log-btn" onclick="logMoisture('${today}')">Log today's reading</button>`
+      }
+    </div>
+
+    <div class="section">
       <div class="section-label">Past 7 days — rain + watering</div>
       <div class="rainfall-bar-bg">
         <div class="rainfall-bar-fill ${weekTotal >= GOAL_INCHES ? 'over' : ''}"
@@ -501,6 +605,10 @@ function renderApp(data) {
           const total = d.rain + (wasWatered(d.date) ? WATERING_EQUIV : 0);
           const heightPct = (total / maxVal) * 100;
           const isWatered = wasWatered(d.date);
+          const mReading  = getMoistureReading(d.date);
+          const mColor    = mReading !== null
+            ? (mReading <= 3 ? 'var(--warn)' : mReading >= 8 ? 'var(--rain)' : 'var(--grass)')
+            : '';
           return `
             <div class="day-pill">
               <div class="day-name" style="${d.isToday ? 'color:var(--grass);font-weight:700' : ''}">${d.name}</div>
@@ -510,6 +618,7 @@ function renderApp(data) {
               </div>
               <div class="day-icon">${isWatered ? '💧' : (d.rain > 0 ? '🌧️' : '')}</div>
               <div class="day-amount">${total > 0 ? total.toFixed(2) + '"' : '—'}</div>
+              <div class="day-moisture" style="color:${mColor}">${mReading !== null ? mReading + '/10' : ''}</div>
             </div>`;
         }).join('')}
       </div>
@@ -542,6 +651,28 @@ function renderApp(data) {
   `;
 }
 
+window.updateMoistureDisplay = function(val) {
+  const v    = parseInt(val, 10);
+  const zone = moistureZoneLabel(v);
+  const el   = document.getElementById('moisture-readout');
+  if (el) el.innerHTML = `
+    <span class="moisture-readout-val">${v}/10</span>
+    <span class="moisture-readout-zone ${zone}">${zone}</span>
+  `;
+};
+
+window.logMoisture = function(dateStr) {
+  const slider = document.getElementById('moisture-slider');
+  if (!slider) return;
+  setMoistureReading(dateStr, parseInt(slider.value, 10));
+  renderApp(window._weatherData);
+};
+
+window.clearMoisture = function(dateStr) {
+  clearMoistureReading(dateStr);
+  renderApp(window._weatherData);
+};
+
 async function init() {
   // Initialize Firestore and load watered dates before first render
   try {
@@ -551,15 +682,17 @@ async function init() {
 
     const snap = await getDoc(_logDocRef);
     if (snap.exists()) {
-      _wateredDates = snap.data().wateredDates || [];
+      _wateredDates     = snap.data().wateredDates     || [];
+      _moistureReadings = snap.data().moistureReadings || {};
     } else {
-      await setDoc(_logDocRef, { wateredDates: [] });
+      await setDoc(_logDocRef, { wateredDates: [], moistureReadings: {} });
     }
 
     // Real-time listener keeps all devices in sync
     onSnapshot(_logDocRef, s => {
       if (s.exists()) {
-        _wateredDates = s.data().wateredDates || [];
+        _wateredDates     = s.data().wateredDates     || [];
+        _moistureReadings = s.data().moistureReadings || {};
         if (window._weatherData) renderApp(window._weatherData);
       }
     });
