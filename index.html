@@ -426,23 +426,19 @@ function buildSchedule(allDays) {
     const avgHigh = windowHighs.reduce((a, b) => a + b, 0) / windowHighs.length;
     const goal = GOAL_INCHES * heatMultiplier(avgHigh);
 
-    // Build window total day by day — each watering tops up to GOAL for that day
-    // so a watering after a dry week still registers as meaningfully filling the tank
+    // Build window total day by day — each watering session delivers a fixed
+    // WATERING_EQUIV, same as any other day's rainfall. A single session can't
+    // stretch to cover a heat-raised goal, so closing a bigger gap takes more
+    // watering days within the window, not more water per day.
     let windowRain = 0;
     for (const d of allDays) {
       if (d.date >= windowStartStr && d.date < day.date) {
-        const dayRain = d.rain;
-        const dayWatered = wasWatered(d.date) && (d.isPast || d.isToday);
-        if (dayWatered) {
-          // Treat a watering as delivering whatever is needed to reach GOAL,
-          // minimum WATERING_EQUIV, so it always makes a real dent
-          windowRain += Math.max(WATERING_EQUIV, goal - windowRain - dayRain);
-        }
-        windowRain += dayRain;
+        windowRain += d.rain;
+        if (wasWatered(d.date) && (d.isPast || d.isToday)) windowRain += WATERING_EQUIV;
       }
     }
 
-    const totalWithToday = windowRain + day.rain + (manuallyWatered ? Math.max(WATERING_EQUIV, goal - windowRain - day.rain) : 0);
+    const totalWithToday = windowRain + day.rain + (manuallyWatered ? WATERING_EQUIV : 0);
     const deficit = Math.max(0, goal - totalWithToday);
     const heatNote = goal > GOAL_INCHES ? ` Goal raised to ${goal.toFixed(2)}" — ${Math.round(avgHigh)}°F avg heat increases water needs.` : '';
 
@@ -455,7 +451,9 @@ function buildSchedule(allDays) {
 
     if (manuallyWatered) {
       type = 'no-water'; action = 'Already watered 💧';
-      detail = `You watered today. That counts toward your weekly total.`;
+      detail = deficit > 0
+        ? `You watered today (+${WATERING_EQUIV.toFixed(2)}"), but you're still ${deficit.toFixed(2)}" short for the week — plan on watering again on another day.${heatNote}`
+        : `You watered today. That's enough to hit this week's ${goal.toFixed(2)}" goal.${heatNote}`;
     } else if (totalWithToday >= goal) {
       type = 'no-water'; action = 'Skip — goal met';
       detail = `${totalWithToday.toFixed(2)}" in the 7-day window including today's forecast.${heatNote}`;
