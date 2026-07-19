@@ -304,6 +304,7 @@ const FIREBASE_CONFIG = {
 // ── Firestore state ───────────────────────────────────────────────────────────
 let _wateredDates     = [];
 let _moistureReadings = {};
+let _rainOverrides    = {};
 let _logDocRef        = null;
 
 function getWateredDates() { return _wateredDates; }
@@ -342,6 +343,28 @@ function clearMoistureReading(dateStr) {
   }
 }
 
+// A logged reading overrides the API's precipitation_sum for that date — the
+// weather model can miss localized storm cells entirely, so a known-good
+// on-the-ground amount should win over the model's guess.
+function getRainOverride(dateStr) { return _rainOverrides[dateStr] ?? null; }
+
+function setRainOverride(dateStr, value) {
+  _rainOverrides = { ..._rainOverrides, [dateStr]: value };
+  if (_logDocRef) {
+    updateDoc(_logDocRef, { [`rainOverrides.${dateStr}`]: value })
+      .catch(err => console.error('Firestore write failed:', err));
+  }
+}
+
+function clearRainOverride(dateStr) {
+  const { [dateStr]: _removed, ...rest } = _rainOverrides;
+  _rainOverrides = rest;
+  if (_logDocRef) {
+    updateDoc(_logDocRef, { [`rainOverrides.${dateStr}`]: deleteField() })
+      .catch(err => console.error('Firestore write failed:', err));
+  }
+}
+
 function moistureZoneLabel(v) {
   if (v <= 3) return 'dry';
   if (v >= 8) return 'wet';
@@ -374,11 +397,44 @@ async function fetchWeather() {
   return res.json();
 }
 
+// IEMRE (Iowa Environmental Mesonet Reanalysis) blends MRMS radar with rain
+// gauges into an actual observed daily total, unlike Open-Meteo's modeled
+// precipitation_sum, which can badly miss localized convective storms. Only
+// usable for fully-elapsed past days — today's total isn't final yet.
+let _iemreRain = {};
+
+async function fetchIEMREDay(dateStr) {
+  try {
+    const url = `https://mesonet.agron.iastate.edu/iemre/daily/${dateStr}/${LAT}/${LON}/json`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const day = json?.data?.[0];
+    if (!day) return null;
+    const val = day.daily_precip_in ?? day.mrms_precip_in;
+    return (typeof val === 'number' && !isNaN(val)) ? val : null;
+  } catch (e) {
+    console.warn(`IEMRE fetch failed for ${dateStr}:`, e);
+    return null;
+  }
+}
+
+async function refreshIEMRERain() {
+  const pastDates = [];
+  for (let offset = -6; offset < 0; offset++) pastDates.push(dateOffset(offset));
+  const results = await Promise.all(pastDates.map(async ds => [ds, await fetchIEMREDay(ds)]));
+  const next = {};
+  for (const [ds, val] of results) {
+    if (val !== null) next[ds] = val;
+  }
+  _iemreRain = next;
+}
+
 const WEATHER_REFRESH_MS = 15 * 60 * 1000;
 
 async function refreshWeather() {
   try {
-    const data = await fetchWeather();
+    const [data] = await Promise.all([fetchWeather(), refreshIEMRERain()]);
     renderApp(data);
   } catch (e) {
     console.warn('Weather refresh failed, keeping last known forecast:', e);
@@ -538,9 +594,11 @@ function renderApp(data) {
     const ds  = dateOffset(offset);
     const idx = dates.indexOf(ds);
     if (idx < 0) continue;
+    const iemreVal = offset < 0 ? (_iemreRain[ds] ?? null) : null;
     allDays.push({
       date: ds, name: getDayName(ds), nameLong: getDayName(ds, false),
-      rain: precip[idx] || 0,
+      rain: getRainOverride(ds) ?? iemreVal ?? (precip[idx] || 0),
+      rainOverridden: getRainOverride(ds) !== null,
       high: Math.round(maxT[idx]), low: Math.round(minT[idx]),
       code: codes[idx],
       isPast: offset < 0, isToday: offset === 0, isFuture: offset > 0,
@@ -629,6 +687,7 @@ function renderApp(data) {
 
     <div class="section">
       <div class="section-label">Past 7 days — rain + watering</div>
+      <div class="stat-sub" style="margin-bottom:10px">Tap a day to correct its rainfall if the forecast missed a localized storm.</div>
       <div class="rainfall-bar-bg">
         <div class="rainfall-bar-fill ${weekTotal >= weekGoal ? 'over' : ''}"
              style="width: ${barPct}%"></div>
@@ -647,14 +706,14 @@ function renderApp(data) {
             ? (mReading <= 3 ? 'var(--warn)' : mReading >= 8 ? 'var(--rain)' : 'var(--grass)')
             : '';
           return `
-            <div class="day-pill">
+            <div class="day-pill" onclick="editRainOverride('${d.date}')" style="cursor:pointer">
               <div class="day-name" style="${d.isToday ? 'color:var(--grass);font-weight:700' : ''}">${d.name}</div>
               <div class="day-bar-bg">
                 <div class="day-bar-fill ${isWatered ? 'water-bar' : 'rain-bar'}"
                      style="height:${Math.max(heightPct, total > 0 ? 8 : 0)}%"></div>
               </div>
               <div class="day-icon">${isWatered ? '💧' : (d.rain > 0 ? '🌧️' : '')}</div>
-              <div class="day-amount">${total > 0 ? total.toFixed(2) + '"' : '—'}</div>
+              <div class="day-amount">${total > 0 ? total.toFixed(2) + '"' : '—'}${d.rainOverridden ? ' ✎' : ''}</div>
               <div class="day-moisture" style="color:${mColor}">${mReading !== null ? mReading + '/10' : ''}</div>
             </div>`;
         }).join('')}
@@ -710,6 +769,23 @@ window.clearMoisture = function(dateStr) {
   renderApp(window._weatherData);
 };
 
+window.editRainOverride = function(dateStr) {
+  const current = getRainOverride(dateStr);
+  const input = prompt(
+    `Actual rainfall for ${dateStr} (inches). The forecast model can miss localized storms — enter what you actually got, or leave blank to go back to the forecast value.`,
+    current !== null ? current : ''
+  );
+  if (input === null) return;
+  const trimmed = input.trim();
+  if (trimmed === '') {
+    clearRainOverride(dateStr);
+  } else {
+    const val = parseFloat(trimmed);
+    if (!isNaN(val) && val >= 0) setRainOverride(dateStr, val);
+  }
+  renderApp(window._weatherData);
+};
+
 async function init() {
   // Initialize Firestore and load watered dates before first render
   try {
@@ -721,8 +797,9 @@ async function init() {
     if (snap.exists()) {
       _wateredDates     = snap.data().wateredDates     || [];
       _moistureReadings = snap.data().moistureReadings || {};
+      _rainOverrides    = snap.data().rainOverrides     || {};
     } else {
-      await setDoc(_logDocRef, { wateredDates: [], moistureReadings: {} });
+      await setDoc(_logDocRef, { wateredDates: [], moistureReadings: {}, rainOverrides: {} });
     }
 
     // Real-time listener keeps all devices in sync
@@ -730,6 +807,7 @@ async function init() {
       if (s.exists()) {
         _wateredDates     = s.data().wateredDates     || [];
         _moistureReadings = s.data().moistureReadings || {};
+        _rainOverrides    = s.data().rainOverrides     || {};
         if (window._weatherData) renderApp(window._weatherData);
       }
     });
@@ -738,7 +816,7 @@ async function init() {
   }
 
   try {
-    const data = await fetchWeather();
+    const [data] = await Promise.all([fetchWeather(), refreshIEMRERain()]);
     renderApp(data);
     setInterval(refreshWeather, WEATHER_REFRESH_MS);
   } catch(e) {
