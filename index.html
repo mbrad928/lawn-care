@@ -397,11 +397,44 @@ async function fetchWeather() {
   return res.json();
 }
 
+// IEMRE (Iowa Environmental Mesonet Reanalysis) blends MRMS radar with rain
+// gauges into an actual observed daily total, unlike Open-Meteo's modeled
+// precipitation_sum, which can badly miss localized convective storms. Only
+// usable for fully-elapsed past days — today's total isn't final yet.
+let _iemreRain = {};
+
+async function fetchIEMREDay(dateStr) {
+  try {
+    const url = `https://mesonet.agron.iastate.edu/iemre/daily/${dateStr}/${LAT}/${LON}/json`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const json = await res.json();
+    const day = json?.data?.[0];
+    if (!day) return null;
+    const val = day.daily_precip_in ?? day.mrms_precip_in;
+    return (typeof val === 'number' && !isNaN(val)) ? val : null;
+  } catch (e) {
+    console.warn(`IEMRE fetch failed for ${dateStr}:`, e);
+    return null;
+  }
+}
+
+async function refreshIEMRERain() {
+  const pastDates = [];
+  for (let offset = -6; offset < 0; offset++) pastDates.push(dateOffset(offset));
+  const results = await Promise.all(pastDates.map(async ds => [ds, await fetchIEMREDay(ds)]));
+  const next = {};
+  for (const [ds, val] of results) {
+    if (val !== null) next[ds] = val;
+  }
+  _iemreRain = next;
+}
+
 const WEATHER_REFRESH_MS = 15 * 60 * 1000;
 
 async function refreshWeather() {
   try {
-    const data = await fetchWeather();
+    const [data] = await Promise.all([fetchWeather(), refreshIEMRERain()]);
     renderApp(data);
   } catch (e) {
     console.warn('Weather refresh failed, keeping last known forecast:', e);
@@ -561,9 +594,10 @@ function renderApp(data) {
     const ds  = dateOffset(offset);
     const idx = dates.indexOf(ds);
     if (idx < 0) continue;
+    const iemreVal = offset < 0 ? (_iemreRain[ds] ?? null) : null;
     allDays.push({
       date: ds, name: getDayName(ds), nameLong: getDayName(ds, false),
-      rain: getRainOverride(ds) ?? (precip[idx] || 0),
+      rain: getRainOverride(ds) ?? iemreVal ?? (precip[idx] || 0),
       rainOverridden: getRainOverride(ds) !== null,
       high: Math.round(maxT[idx]), low: Math.round(minT[idx]),
       code: codes[idx],
@@ -782,7 +816,7 @@ async function init() {
   }
 
   try {
-    const data = await fetchWeather();
+    const [data] = await Promise.all([fetchWeather(), refreshIEMRERain()]);
     renderApp(data);
     setInterval(refreshWeather, WEATHER_REFRESH_MS);
   } catch(e) {
