@@ -530,9 +530,18 @@ function buildSchedule(allDays, current) {
     } else if (day.rain >= 0.4) {
       type = 'no-water'; action = 'Skip — rain expected';
       detail = `${day.rain.toFixed(2)}" of rain forecast today. Let nature handle it.`;
-    } else if (nearFutureRain >= deficit) {
+    } else if (nearFutureRain > 0 && (deficit - nearFutureRain) < 0.5) {
+      // A watering session always delivers a full WATERING_EQUIV (1"), not just
+      // enough to close the gap. If rain already forecast in the next 2 days
+      // would shrink the remaining deficit below the 0.5" "worth a session"
+      // bar, watering today piles a full inch on top of that rain and
+      // overshoots the goal once it actually falls — so hold off and let the
+      // schedule re-check itself tomorrow instead.
+      const remaining = Math.max(0, deficit - nearFutureRain);
       type = 'maybe'; action = 'Hold — rain coming';
-      detail = `${nearFutureRain.toFixed(2)}" expected in the next 2 days — likely to close the ${deficit.toFixed(2)}" gap.${heatNote}`;
+      detail = remaining > 0
+        ? `${nearFutureRain.toFixed(2)}" expected in the next 2 days — that shrinks the ${deficit.toFixed(2)}" gap to ${remaining.toFixed(2)}", too little to justify a full watering session. Recheck tomorrow.${heatNote}`
+        : `${nearFutureRain.toFixed(2)}" expected in the next 2 days — likely to close the ${deficit.toFixed(2)}" gap.${heatNote}`;
     } else if (deficit >= 0.5) {
       type = 'water'; action = 'Water today';
       detail = `${windowRain.toFixed(2)}" so far in your 7-day window — ${deficit.toFixed(2)}" short. Run your sprinkler.${heatNote}`;
