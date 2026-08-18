@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lawn Care Calendar — Rockburn Drive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --soil: #2C1F0E;
+    --grass: #4A7C59;
+    --rain: #5B8FA8;
+    --warn: #D4823A;
+    --straw: #C8A96E;
+    --surface: #F7F3EE;
+    --card: #FFFFFF;
+    --text: #1A1208;
+    --muted: #7A6A55;
+    --bad: #B5452E;
+  }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    background: var(--surface);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  header { margin-bottom: 18px; }
+
+  .eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px; letter-spacing: 0.15em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 4px;
+  }
+
+  h1 { font-size: 22px; font-weight: 600; color: var(--soil); line-height: 1.2; }
+
+  .date-line {
+    font-size: 12px; color: var(--muted);
+    margin-top: 4px; font-family: 'Space Mono', monospace;
+  }
+
+  nav.tabs {
+    display: flex; gap: 8px; margin-top: 16px;
+  }
+  nav.tabs a {
+    flex: 1; text-align: center; text-decoration: none;
+    padding: 10px; border-radius: 10px;
+    font-size: 12px; font-weight: 600; font-family: 'Space Mono', monospace;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    border: 1px solid rgba(0,0,0,0.08); color: var(--muted); background: var(--card);
+  }
+  nav.tabs a.active { background: var(--soil); color: white; border-color: var(--soil); }
+
+  .section {
+    background: var(--card); border-radius: 12px;
+    padding: 18px; margin-bottom: 16px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 12px;
+  }
+  .section-sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+
+  /* GRASS PROFILE */
+  .profile-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .chip {
+    font-size: 11px; font-family: 'Space Mono', monospace;
+    padding: 5px 10px; border-radius: 99px; background: #EEF5EF; color: var(--grass);
+    border: 1px solid rgba(74,124,89,0.25);
+  }
+  .chip.warn { background: #FBEDE7; color: var(--bad); border-color: rgba(181,69,46,0.25); }
+  .profile-note { font-size: 12px; color: var(--muted); line-height: 1.6; margin-top: 8px; }
+
+  /* LIVE CONDITIONS */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { background: var(--surface); border-radius: 10px; padding: 12px; }
+  .stat-label {
+    font-family: 'Space Mono', monospace; font-size: 9px; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 6px;
+  }
+  .stat-value { font-size: 20px; font-weight: 600; color: var(--soil); }
+  .stat-sub { font-size: 10px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+  /* BADGES */
+  .badge {
+    display: inline-block; font-family: 'Space Mono', monospace;
+    font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 99px; font-weight: 700;
+  }
+  .badge.now      { background: var(--bad); color: white; }
+  .badge.soon     { background: var(--straw); color: white; }
+  .badge.monitor  { background: var(--rain); color: white; }
+  .badge.past     { background: #EBE5DC; color: var(--muted); }
+  .badge.info     { background: #EEF5EF; color: var(--grass); }
+
+  /* TASK CARDS */
+  .task {
+    border: 1px solid rgba(0,0,0,0.07); border-radius: 10px;
+    padding: 12px; margin-bottom: 10px; background: var(--surface);
+  }
+  .task:last-child { margin-bottom: 0; }
+  .task-head { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; flex-wrap: wrap; }
+  .task-icon { font-size: 15px; }
+  .task-title { font-size: 13px; font-weight: 600; color: var(--soil); flex: 1; min-width: 120px; }
+  .task-window {
+    font-size: 10px; font-family: 'Space Mono', monospace; color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .task-detail { font-size: 12px; color: var(--muted); line-height: 1.55; }
+  .task-detail b { color: var(--text); }
+  .task-live {
+    margin-top: 8px; padding: 8px 10px; border-radius: 8px;
+    background: rgba(91,143,168,0.1); font-size: 11px; color: var(--text); line-height: 1.5;
+  }
+
+  /* MONTH ACCORDION */
+  details.month { border-bottom: 1px solid #F0EBE3; padding: 10px 0; }
+  details.month:last-child { border-bottom: none; }
+  details.month summary {
+    cursor: pointer; list-style: none; display: flex; align-items: center;
+    justify-content: space-between; font-weight: 600; font-size: 14px; color: var(--soil);
+  }
+  details.month summary::-webkit-details-marker { display: none; }
+  details.month summary .arrow { font-size: 11px; color: var(--muted); transition: transform 0.15s; }
+  details.month[open] summary .arrow { transform: rotate(90deg); }
+  details.month .month-tag {
+    font-family: 'Space Mono', monospace; font-size: 9px; color: white;
+    background: var(--grass); padding: 2px 7px; border-radius: 99px; margin-left: 8px;
+  }
+  .month-body { margin-top: 12px; }
+  .month-empty { font-size: 12px; color: var(--muted); font-style: italic; padding: 4px 0; }
+
+  /* MOWING TABLE */
+  .mow-strip { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .mow-cell {
+    text-align: center; border-radius: 8px; padding: 8px 4px; background: var(--surface);
+    border: 1px solid transparent;
+  }
+  .mow-cell.current { background: #EEF5EF; border-color: var(--grass); }
+  .mow-cell-month {
+    font-size: 9px; font-family: 'Space Mono', monospace; color: var(--muted);
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .mow-cell-height { font-size: 13px; font-weight: 700; color: var(--soil); }
+  @media (max-width: 420px) { .mow-strip { grid-template-columns: repeat(4, 1fr); } }
+
+  .loading { text-align: center; padding: 30px 20px; color: var(--muted); font-size: 13px; }
+  .spinner {
+    width: 24px; height: 24px;
+    border: 2px solid #EBE5DC; border-top-color: var(--grass);
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 10px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .last-updated {
+    text-align: center; font-size: 10px;
+    font-family: 'Space Mono', monospace; color: var(--muted); margin-top: 4px;
+  }
+  .footnote { font-size: 11px; color: var(--muted); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">7823 Rockburn Drive · Ellicott City, MD · Zone 7a</div>
+  <h1>Lawn Care Calendar</h1>
+  <div class="date-line" id="today-date"></div>
+  <nav class="tabs">
+    <a href="index.html">Watering</a>
+    <a href="calendar.html" class="active">Care Calendar</a>
+  </nav>
+</header>
+
+<div class="section">
+  <div class="section-label">Your lawn</div>
+  <div class="profile-row" id="profile-chips"></div>
+  <div class="profile-note">
+    Tall fescue and fine fescue are both cool-season grasses, so the whole program below runs on the
+    cool-season calendar: the big pushes are in <b>fall</b> (aeration, seeding, fertilizer), spring gets
+    a light touch, and summer is mostly maintenance + monitoring. Any Kentucky bluegrass mixed in rides
+    along on the same schedule — it just self-repairs bare spots via rhizomes better than the fescues do.
+    Bermuda is the odd one out: it's a <b>warm-season</b> grass that wants the opposite calendar, which is
+    exactly why it invades cool-season lawns in summer and why it needs its own removal track below.
+  </div>
+</div>
+
+<div class="section" id="live-section">
+  <div class="section-label">Live conditions</div>
+  <div class="loading" id="live-loading">
+    <div class="spinner"></div>
+    Reading soil temperature &amp; forecast…
+  </div>
+  <div id="live-content" style="display:none"></div>
+</div>
+
+<div class="section" id="now-section" style="display:none">
+  <div class="section-label">Right now</div>
+  <div id="now-content"></div>
+</div>
+
+<div class="section">
+  <div class="section-label">Mowing height by season</div>
+  <div class="section-sub">
+    Mow high, especially in summer — a taller canopy shades the soil, keeps fescue roots cooler,
+    crowds out crabgrass, and is one of your best tools against Bermuda encroachment. Never remove more
+    than 1/3 of the blade in a single cut.
+  </div>
+  <div class="mow-strip" id="mow-strip"></div>
+</div>
+
+<div class="section">
+  <div class="section-label">Full year, month by month</div>
+  <div class="section-sub">Tap a month to expand it. This month is opened for you.</div>
+  <div id="month-list"></div>
+</div>
+
+<div class="section" id="bermuda-section">
+  <div class="section-label">🎯 Bermuda removal plan</div>
+  <div id="bermuda-content"></div>
+</div>
+
+<div class="section">
+  <div class="footnote">
+    Schedule follows University of Maryland Extension / mid-Atlantic transition-zone guidance for
+    tall fescue lawns. Live soil-temperature and overnight-low readings come from Open-Meteo
+    (0 cm depth estimate) for your coordinates and refresh the trigger badges above — treat them as a
+    guide, not a substitute for a soil probe. This isn't a substitute for a soil test; if you haven't
+    pulled one in the last 2–3 years, a $10–20 UMD Extension soil test will tell you exactly what your
+    fertilizer program actually needs.
+  </div>
+</div>
+
+<script type="module">
+const LAT = 39.2274;
+const LON = -76.7876;
+
+const GRASS_PROFILE = {
+  chips: [
+    { label: 'Tall Fescue — dominant', kind: 'info' },
+    { label: 'Fine Fescue — present', kind: 'info' },
+    { label: 'KBG — possible, minor', kind: 'info' },
+    { label: 'Bermuda — patches to remove', kind: 'warn' },
+  ],
+};
+
+// ── Mowing height guide (inches), by month ──────────────────────────────────
+const MOW_HEIGHTS = [
+  { m: 1,  label: 'Jan', height: 'Dormant' },
+  { m: 2,  label: 'Feb', height: 'Dormant' },
+  { m: 3,  label: 'Mar', height: '3.0–3.5"' },
+  { m: 4,  label: 'Apr', height: '3.0–3.5"' },
+  { m: 5,  label: 'May', height: '3.5"' },
+  { m: 6,  label: 'Jun', height: '3.5–4.0"' },
+  { m: 7,  label: 'Jul', height: '3.5–4.0"' },
+  { m: 8,  label: 'Aug', height: '3.5–4.0"' },
+  { m: 9,  label: 'Sep', height: '3.0–3.5"' },
+  { m: 10, label: 'Oct', height: '3.0–3.5"' },
+  { m: 11, label: 'Nov', height: '2.5–3.0"*' },
+  { m: 12, label: 'Dec', height: 'Dormant' },
+];
+
+// ── Task list — recurring annual windows (month/day are 1-indexed, same year) ─
+// status live-check keys: 'preemergent' | 'fallseed' | 'brownpatch'
+const TASKS = [
+  {
+    id: 'preemergent', category: 'preemergent', icon: '🛡️',
+    title: 'Crabgrass pre-emergent',
+    start: [3, 10], end: [4, 15],
+    detail: 'Apply a pre-emergent (prodiamine or dithiopyr) before crabgrass germinates. ' +
+      '<b>Trigger: soil temp sustained above 55°F</b> at 1–2" depth, roughly when forsythia blooms. ' +
+      'Skip this if you\'re planning to overseed bare spots this spring — pre-emergents block grass seed too.',
+    live: 'preemergent',
+  },
+  {
+    id: 'spring-fert', category: 'fertilize', icon: '🧪',
+    title: 'Light spring feeding (optional)',
+    start: [4, 15], end: [5, 15],
+    detail: 'Only if the lawn looks pale after green-up: <b>0.5–0.75 lb N / 1,000 sq ft</b>. ' +
+      'Skip it if you fed heavily last fall — heavy spring nitrogen on fescue promotes disease and ' +
+      'shallow roots right before summer heat arrives.',
+  },
+  {
+    id: 'spring-broadleaf', category: 'broadleaf', icon: '🌼',
+    title: 'Spot-treat broadleaf weeds',
+    start: [4, 15], end: [5, 31],
+    detail: 'Spot-spray dandelion, clover, and other broadleaf weeds with a post-emergent broadleaf ' +
+      'herbicide as needed. Avoid blanket applications near any areas you plan to reseed.',
+  },
+  {
+    id: 'bermuda-id-spring', category: 'bermuda', icon: '🔎',
+    title: 'Bermuda ID window (spring green-up)',
+    start: [5, 1], end: [5, 31],
+    detail: 'Bermuda breaks dormancy later than fescue and greens up unevenly (soil >65°F). ' +
+      'Walk the lawn and flag patches that green up noticeably later/differently than the surrounding ' +
+      'fescue — that\'s Bermuda. Mark them for the summer treatment window below.',
+  },
+  {
+    id: 'bermuda-treat', category: 'bermuda', icon: '🎯',
+    title: 'Bermuda spot-treatment (active growth)',
+    start: [6, 1], end: [8, 31],
+    detail: 'Bermuda takes up herbicide best while actively growing. Spot-treat marked patches only — ' +
+      'see the dedicated plan below for product choice and reapplication cadence.',
+  },
+  {
+    id: 'brownpatch', category: 'fungicide', icon: '🍄',
+    title: 'Brown patch monitoring / fungicide',
+    start: [6, 1], end: [8, 31],
+    detail: 'Fescue\'s main summer disease is brown patch (Rhizoctonia), favored by hot humid nights. ' +
+      'Cultural prevention first: water early morning only (never evening), avoid summer nitrogen. ' +
+      'If you have a history of brown patch, start a preventative fungicide in early-mid June and ' +
+      'reapply every 21–28 days through August.',
+    live: 'brownpatch',
+  },
+  {
+    id: 'summer-fert-hold', category: 'fertilize', icon: '⏸️',
+    title: 'Hold off on fertilizer',
+    start: [6, 1], end: [8, 31],
+    detail: 'No nitrogen during summer heat — it stresses fescue and feeds brown patch. If color is ' +
+      'poor, use an iron supplement instead (greens up without pushing growth).',
+  },
+  {
+    id: 'aerate-seed', category: 'aerate-seed', icon: '🕳️',
+    title: 'Core aerate + overseed',
+    start: [8, 15], end: [10, 15],
+    detail: 'The single most important job of the year for fescue. Core aerate, then overseed with a ' +
+      'turf-type tall fescue blend (add fine fescue for shady spots). Ideal window is <b>Sep 1–30</b>. ' +
+      'This is also when you reseed any bare patches left over from summer Bermuda spot-treatment. ' +
+      'Keep the seedbed moist — light watering 2×/day until germination (10–14 days), then taper.',
+    live: 'fallseed',
+  },
+  {
+    id: 'fall-fert-1', category: 'fertilize', icon: '🧪',
+    title: 'Fall fertilizer #1',
+    start: [9, 1], end: [9, 15],
+    detail: '<b>0.75–1 lb N / 1,000 sq ft.</b> Pairs with aeration/seeding above — pick a starter-fertilizer ' +
+      'formulation (higher phosphorus) if you\'re overseeding at the same time.',
+  },
+  {
+    id: 'fall-fert-2', category: 'fertilize', icon: '🧪',
+    title: 'Fall fertilizer #2',
+    start: [10, 1], end: [10, 15],
+    detail: '<b>1 lb N / 1,000 sq ft.</b> This and the early-Sept feeding are the two most impactful ' +
+      'applications you\'ll make all year for a fescue lawn.',
+  },
+  {
+    id: 'fall-broadleaf', category: 'broadleaf', icon: '🌼',
+    title: 'Fall broadleaf weed control',
+    start: [10, 1], end: [10, 31],
+    detail: 'Perennial broadleaf weeds are moving nutrients to their roots in fall, which makes them ' +
+      'unusually receptive to post-emergent herbicide. Good second bite at anything spring spot-treatment missed.',
+  },
+  {
+    id: 'bermuda-id-fall', category: 'bermuda', icon: '🔎',
+    title: 'Bermuda ID window (fall dormancy)',
+    start: [10, 15], end: [11, 15],
+    detail: 'Bermuda goes dormant and turns tan/brown well before fescue does. This is the clearest ' +
+      'time all year to photograph and map exactly where your Bermuda patches are, so next June\'s ' +
+      'treatment starts on day one instead of after another round of searching.',
+  },
+  {
+    id: 'final-mow', category: 'mow', icon: '✂️',
+    title: 'Final mow of the season',
+    start: [11, 1], end: [11, 30],
+    detail: 'Gradually lower to <b>2.5–3"</b> for your last 1–2 cuts before growth stops. Shorter turf ' +
+      'going into winter resists matting and snow mold better than leaving it tall and floppy.',
+  },
+  {
+    id: 'winterizer', category: 'fertilize', icon: '🧪',
+    title: 'Winterizer fertilizer',
+    start: [11, 1], end: [11, 30],
+    detail: '<b>1 lb N / 1,000 sq ft</b>, ideally a lower-nitrogen/higher-potassium blend. Apply after ' +
+      'the final mow, before the ground freezes — it builds root and energy reserves for a faster ' +
+      'green-up next spring rather than pushing top growth now.',
+  },
+];
+
+const CATEGORY_LABEL = {
+  mow: 'Mowing', fertilize: 'Fertilizer', preemergent: 'Pre-emergent',
+  'aerate-seed': 'Aeration & Seeding', fungicide: 'Fungicide', bermuda: 'Bermuda control',
+  broadleaf: 'Weed control',
+};
+
+// ── Date helpers ──────────────────────────────────────────────────────────────
+function toLocalDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+const NOW = new Date();
+const TODAY_KEY = (NOW.getMonth() + 1) * 100 + NOW.getDate();
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function windowKey([m, d]) { return m * 100 + d; }
+
+function daysUntil([m, d]) {
+  const target = new Date(NOW.getFullYear(), m - 1, d);
+  const diff = Math.round((target - new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate())) / 86400000);
+  return diff;
+}
+
+function taskStatus(task) {
+  const sKey = windowKey(task.start), eKey = windowKey(task.end);
+  if (TODAY_KEY >= sKey && TODAY_KEY <= eKey) return 'now';
+  const until = daysUntil(task.start);
+  if (until > 0 && until <= 21) return 'soon';
+  return 'past';
+}
+
+const STATUS_LABEL = { now: 'Due now', soon: 'Starting soon', past: 'Not this window' };
+
+function fmtWindow(task) {
+  const s = task.start, e = task.end;
+  const sStr = `${MONTH_NAMES[s[0]-1].slice(0,3)} ${s[1]}`;
+  const eStr = `${MONTH_NAMES[e[0]-1].slice(0,3)} ${e[1]}`;
+  return `${sStr} – ${eStr}`;
+}
+
+// ── Weather / soil temp ───────────────────────────────────────────────────────
+async function fetchConditions() {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}`
+    + `&hourly=soil_temperature_0cm,temperature_2m,relative_humidity_2m`
+    + `&temperature_unit=fahrenheit&timezone=America%2FNew_York`
+    + `&past_days=3&forecast_days=7`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('weather fetch failed');
+  return res.json();
+}
+
+function summarizeConditions(data) {
+  const times = data.hourly.time;
+  const soil  = data.hourly.soil_temperature_0cm;
+  const temp  = data.hourly.temperature_2m;
+  const hum   = data.hourly.relative_humidity_2m;
+
+  const nowIdx = times.findIndex(t => new Date(t) > NOW);
+  const idx = nowIdx > 0 ? nowIdx - 1 : 0;
+  const soilNow = soil[idx];
+
+  // Past 3 days vs next 3 days average soil temp -> trend
+  const pastVals = [], nextVals = [];
+  times.forEach((t, i) => {
+    const dt = new Date(t);
+    const diffDays = (dt - NOW) / 86400000;
+    if (soil[i] == null) return;
+    if (diffDays < 0 && diffDays >= -3) pastVals.push(soil[i]);
+    else if (diffDays >= 0 && diffDays <= 3) nextVals.push(soil[i]);
+  });
+  const avg = arr => arr.length ? arr.reduce((a,b) => a+b, 0) / arr.length : null;
+  const pastAvg = avg(pastVals), nextAvg = avg(nextVals);
+  const trend = (pastAvg != null && nextAvg != null) ? (nextAvg - pastAvg) : 0;
+
+  // Overnight lows (9pm-6am) and humidity over the next 7 days
+  const overnightLows = [], humVals = [];
+  times.forEach((t, i) => {
+    const dt = new Date(t);
+    const diffDays = (dt - NOW) / 86400000;
+    if (diffDays < 0 || diffDays > 7) return;
+    const hr = dt.getHours();
+    if (hr >= 21 || hr <= 6) overnightLows.push(temp[i]);
+    if (hum[i] != null) humVals.push(hum[i]);
+  });
+  const overnightLowAvg = avg(overnightLows);
+  const humidityAvg = avg(humVals);
+
+  return { soilNow, trend, overnightLowAvg, humidityAvg };
+}
+
+function brownPatchRisk(c) {
+  if (c.overnightLowAvg == null || c.humidityAvg == null) return null;
+  if (c.overnightLowAvg >= 65 && c.humidityAvg >= 65) return 'elevated';
+  if (c.overnightLowAvg >= 60 && c.humidityAvg >= 55) return 'moderate';
+  return 'low';
+}
+
+function liveNoteFor(key, c) {
+  if (!c) return null;
+  if (key === 'preemergent') {
+    if (c.soilNow == null) return null;
+    const met = c.soilNow >= 55 && c.trend >= 0;
+    return `🌡️ Soil temp is currently <b>${Math.round(c.soilNow)}°F</b> and ${c.trend >= 0 ? 'trending up' : 'trending down'}. `
+      + (met
+        ? 'That\'s past the 55°F trigger — good window to apply now.'
+        : `Trigger is 55°F sustained — ${c.soilNow < 55 ? 'not there yet, hold off a few more days.' : 'temp is above 55°F but trending down, watch for a cold snap before applying.'}`);
+  }
+  if (key === 'fallseed') {
+    if (c.soilNow == null) return null;
+    let msg;
+    if (c.soilNow > 65) msg = 'still warmer than ideal (50–65°F) — fine to aerate now, but hold seed a bit longer for best germination.';
+    else if (c.soilNow >= 50) msg = 'right in the 50–65°F germination sweet spot. Good time to seed.';
+    else msg = 'below 50°F — germination will be slow/poor this late; prioritize any remaining seeding immediately or wait for spring repair only.';
+    return `🌡️ Soil temp is currently <b>${Math.round(c.soilNow)}°F</b>, ${msg}`;
+  }
+  if (key === 'brownpatch') {
+    const risk = brownPatchRisk(c);
+    if (!risk) return null;
+    const label = { elevated: 'Elevated risk', moderate: 'Moderate risk', low: 'Low risk' }[risk];
+    return `🌙 7-day avg overnight low <b>${Math.round(c.overnightLowAvg)}°F</b>, avg humidity <b>${Math.round(c.humidityAvg)}%</b>. `
+      + `<b>${label}</b> of brown patch this week` + (risk === 'elevated' ? ' — this is a good week to have a preventative app down if you have a history of it.' : '.');
+  }
+  return null;
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function renderProfile() {
+  document.getElementById('profile-chips').innerHTML = GRASS_PROFILE.chips
+    .map(c => `<span class="chip ${c.kind === 'warn' ? 'warn' : ''}">${c.label}</span>`).join('');
+}
+
+function renderMowStrip() {
+  const curM = NOW.getMonth() + 1;
+  document.getElementById('mow-strip').innerHTML = MOW_HEIGHTS.map(mo => `
+    <div class="mow-cell ${mo.m === curM ? 'current' : ''}">
+      <div class="mow-cell-month">${mo.label}</div>
+      <div class="mow-cell-height">${mo.height}</div>
+    </div>
+  `).join('') + `<div class="footnote" style="grid-column: 1 / -1; margin-top:6px">*Taper down to this height over your last 1–2 cuts, don't drop straight to it in one pass.</div>`;
+}
+
+function taskCardHTML(task, conditions, opts = {}) {
+  const status = taskStatus(task);
+  const badgeClass = status === 'now' ? 'now' : status === 'soon' ? 'soon' : 'past';
+  const badgeLabel = STATUS_LABEL[status];
+  const live = task.live ? liveNoteFor(task.live, conditions) : null;
+  return `
+    <div class="task">
+      <div class="task-head">
+        <span class="task-icon">${task.icon}</span>
+        <span class="task-title">${task.title}</span>
+        ${opts.hideStatus ? '' : `<span class="badge ${badgeClass}">${badgeLabel}</span>`}
+      </div>
+      <div class="task-window">${fmtWindow(task)} · ${CATEGORY_LABEL[task.category]}</div>
+      <div class="task-detail">${task.detail}</div>
+      ${live ? `<div class="task-live">${live}</div>` : ''}
+    </div>
+  `;
+}
+
+function renderNow(conditions) {
+  const active = TASKS.filter(t => taskStatus(t) === 'now');
+  const soon = TASKS.filter(t => taskStatus(t) === 'soon');
+  const section = document.getElementById('now-section');
+  if (active.length === 0 && soon.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = '';
+  let html = '';
+  if (active.length) html += active.map(t => taskCardHTML(t, conditions, { hideStatus: true })).join('');
+  if (soon.length) {
+    html += `<div class="section-sub" style="margin-top:${active.length ? '10px' : '0'}">Coming up in the next 3 weeks:</div>`;
+    html += soon.map(t => taskCardHTML(t, conditions, { hideStatus: true })).join('');
+  }
+  document.getElementById('now-content').innerHTML = html;
+}
+
+function renderMonths(conditions) {
+  const curM = NOW.getMonth() + 1;
+  const html = MONTH_NAMES.map((name, i) => {
+    const m = i + 1;
+    const monthTasks = TASKS.filter(t => m >= t.start[0] && m <= t.end[0]);
+    const isCur = m === curM;
+    return `
+      <details class="month" ${isCur ? 'open' : ''}>
+        <summary>
+          <span>${name}${isCur ? '<span class="month-tag">NOW</span>' : ''}</span>
+          <span class="arrow">▶</span>
+        </summary>
+        <div class="month-body">
+          ${monthTasks.length
+            ? monthTasks.map(t => taskCardHTML(t, conditions)).join('')
+            : '<div class="month-empty">No scheduled tasks — routine mowing only.</div>'}
+        </div>
+      </details>
+    `;
+  }).join('');
+  document.getElementById('month-list').innerHTML = html;
+}
+
+function renderBermuda(conditions) {
+  const idSpring = TASKS.find(t => t.id === 'bermuda-id-spring');
+  const idFall = TASKS.find(t => t.id === 'bermuda-id-fall');
+  const treat = TASKS.find(t => t.id === 'bermuda-treat');
+  const treatStatus = taskStatus(treat);
+
+  const inTreatWindow = treatStatus === 'now';
+
+  document.getElementById('bermuda-content').innerHTML = `
+    <div class="section-sub">
+      Bermuda is a warm-season grass growing in your cool-season lawn — there's no herbicide that kills
+      it selectively without also hurting fescue, since they're both grasses. This is a multi-step,
+      likely multi-year plan rather than a single treatment.
+    </div>
+
+    <div class="task">
+      <div class="task-head"><span class="task-icon">1️⃣</span><span class="task-title">Suppress year-round</span></div>
+      <div class="task-detail">Mow the fescue at the <b>tall end of the range (3.5–4")</b> year-round, especially
+      near Bermuda patches. Bermuda needs full sun and short turf to compete — a tall, dense fescue canopy
+      shades it out and slows the spread of its stolons.</div>
+    </div>
+
+    <div class="task">
+      <div class="task-head">
+        <span class="task-icon">2️⃣</span><span class="task-title">Map the patches</span>
+        <span class="badge ${taskStatus(idSpring) === 'now' || taskStatus(idFall) === 'now' ? 'now' : 'past'}">
+          ${taskStatus(idSpring) === 'now' ? 'ID window: spring green-up' : taskStatus(idFall) === 'now' ? 'ID window: fall dormancy' : 'Off-window'}
+        </span>
+      </div>
+      <div class="task-detail">Two windows a year make Bermuda obvious against fescue: <b>${fmtWindow(idSpring)}</b>
+      (Bermuda greens up later/unevenly) and <b>${fmtWindow(idFall)}</b> (Bermuda goes tan while fescue stays green).
+      Photograph or flag patches then, so summer treatment starts targeted instead of guessing.</div>
+    </div>
+
+    <div class="task">
+      <div class="task-head">
+        <span class="task-icon">3️⃣</span><span class="task-title">Spot-treat while it's actively growing</span>
+        <span class="badge ${inTreatWindow ? 'now' : 'past'}">${fmtWindow(treat)}</span>
+      </div>
+      <div class="task-detail">
+        Two options, spot-sprayed on marked patches only — never a blanket application:
+        <br><br><b>Grass-selective (gentler on fescue):</b> a fluazifop-P-butyl product
+        (e.g. Ornamec 170, Bonide Grass Beater). Some temporary fescue yellowing, but it recovers.
+        Reapply every 2–3 weeks, 2–4 rounds across the summer.
+        <br><br><b>Non-selective (faster, harsher):</b> glyphosate directly on the patch — kills
+        everything green there, fescue included. Reapply on regrowth in 2–3 weeks. Plan on bare dirt
+        where you spray.
+      </div>
+    </div>
+
+    <div class="task">
+      <div class="task-head"><span class="task-icon">4️⃣</span><span class="task-title">Reseed the bare spots</span></div>
+      <div class="task-detail">Whatever you killed in step 3 (Bermuda and any fescue caught with it) gets
+      folded into the <b>Aug 15 – Oct 15 core aeration + overseeding</b> window above — use a starter
+      fertilizer and keep it consistently moist through germination.</div>
+    </div>
+
+    <div class="task">
+      <div class="task-head"><span class="task-icon">🔁</span><span class="task-title">Expect to repeat</span></div>
+      <div class="task-detail">Bermuda rhizomes typically survive one season of spot-treatment. Budget for
+      a second (often lighter) round of steps 2–4 next summer on whatever regrows before calling a patch fully gone.</div>
+    </div>
+  `;
+}
+
+function renderLive(conditions) {
+  document.getElementById('live-loading').style.display = 'none';
+  const content = document.getElementById('live-content');
+  content.style.display = '';
+  const risk = brownPatchRisk(conditions);
+  const riskLabel = { elevated: 'Elevated', moderate: 'Moderate', low: 'Low' }[risk] || '—';
+  content.innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">Soil temp (0cm)</div>
+        <div class="stat-value">${conditions.soilNow != null ? Math.round(conditions.soilNow) + '°F' : '—'}</div>
+        <div class="stat-sub">${conditions.trend >= 0 ? 'Trending up' : 'Trending down'} over the past 3 days</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Overnight low (7-day avg)</div>
+        <div class="stat-value">${conditions.overnightLowAvg != null ? Math.round(conditions.overnightLowAvg) + '°F' : '—'}</div>
+        <div class="stat-sub">Drives brown patch risk</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Humidity (7-day avg)</div>
+        <div class="stat-value">${conditions.humidityAvg != null ? Math.round(conditions.humidityAvg) + '%' : '—'}</div>
+        <div class="stat-sub">Relative humidity, 2m</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Brown patch risk</div>
+        <div class="stat-value">${riskLabel}</div>
+        <div class="stat-sub">This week, based on heat + humidity</div>
+      </div>
+    </div>
+    <div class="last-updated">Updated ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+  `;
+}
+
+async function init() {
+  document.getElementById('today-date').textContent =
+    NOW.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  renderProfile();
+  renderMowStrip();
+
+  let conditions = { soilNow: null, trend: 0, overnightLowAvg: null, humidityAvg: null };
+  try {
+    const data = await fetchConditions();
+    conditions = summarizeConditions(data);
+  } catch (e) {
+    console.warn('Live conditions unavailable:', e);
+    document.getElementById('live-loading').innerHTML =
+      '<div class="footnote">Couldn\'t load live soil/weather data — showing the schedule without live triggers.</div>';
+  }
+  if (conditions.soilNow != null || conditions.overnightLowAvg != null) renderLive(conditions);
+  else document.getElementById('live-section').style.display = 'none';
+
+  renderNow(conditions);
+  renderMonths(conditions);
+  renderBermuda(conditions);
+}
+
+init();
+</script>
+</body>
+</html>

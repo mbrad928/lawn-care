@@ -44,6 +44,18 @@
     margin-top: 4px; font-family: 'Space Mono', monospace;
   }
 
+  nav.tabs {
+    display: flex; gap: 8px; margin-top: 16px;
+  }
+  nav.tabs a {
+    flex: 1; text-align: center; text-decoration: none;
+    padding: 10px; border-radius: 10px;
+    font-size: 12px; font-weight: 600; font-family: 'Space Mono', monospace;
+    letter-spacing: 0.04em; text-transform: uppercase;
+    border: 1px solid rgba(0,0,0,0.08); color: var(--muted); background: var(--card);
+  }
+  nav.tabs a.active { background: var(--soil); color: white; border-color: var(--soil); }
+
   /* TODAY CARD */
   .rec-card {
     border-radius: 16px; padding: 24px 20px;
@@ -271,6 +283,10 @@
   <div class="eyebrow">7823 Rockburn Drive · Ellicott City, MD</div>
   <h1>Lawn Watering</h1>
   <div class="date-line" id="today-date"></div>
+  <nav class="tabs">
+    <a href="index.html" class="active">Watering</a>
+    <a href="calendar.html">Care Calendar</a>
+  </nav>
 </header>
 
 <div id="app">
