@@ -1,6 +1,9 @@
 # Lawn Care
 
-Lawn watering recommendation tool for 7823 Rockburn Drive. Uses Open-Meteo for weather and Firebase Firestore to sync watering logs across devices.
+Lawn care tools for 7823 Rockburn Drive (Ellicott City, MD — USDA zone 7a). Uses Open-Meteo for weather and Firebase Firestore to sync watering logs across devices.
+
+- **`index.html`** — watering recommendation tool. Tracks rainfall vs. a weekly goal, lets you log manual watering and soil-moisture readings, and syncs across devices via Firestore.
+- **`calendar.html`** — full-year lawn care calendar (mowing height, fertilizer, pre-emergent, aeration/overseeding, fungicide/brown-patch monitoring) tuned for a tall fescue / fine fescue lawn with some Kentucky bluegrass, plus a dedicated multi-step plan for spot-treating and removing Bermuda grass patches. Pulls live soil temperature and forecast data from Open-Meteo to flag when you're actually in a trigger window (e.g. soil warm enough for pre-emergent, or elevated brown-patch risk this week) rather than just showing static dates. Grass profile and location constants live at the top of the `<script>` block if either ever changes.
 
 ## Firebase Setup (one-time)
 
